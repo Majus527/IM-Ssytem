@@ -51,8 +51,8 @@ func (this *User) Offline() {
 
 // 用户处理消息的业务
 func (this *User) DoMessage(msg string) {
+	// 查询当前在线用户
 	if msg == ":who" {
-		// 查询当前在线用户
 		this.server.mapLock.Lock()
 		for _, user := range this.server.OnlineMap {
 			onlineMsg := "[" + user.Addr + "]" + user.Name + " is online..."
@@ -62,8 +62,27 @@ func (this *User) DoMessage(msg string) {
 
 		return
 	}
-	// 将消息广播给全部的在线user
-	// Message <- "[" + this.Addr + "]" + this.Name + ":" + msg
+
+	// 修改用户名
+	if len(msg) > 7 && msg[:8] == ":rename|" {
+		newName := strings.Split(msg, "|")[1]
+		_, ok := this.server.OnlineMap[newName]
+		if ok {
+			this.C <- "该用户名已被占用"
+			return
+		}
+
+		this.server.mapLock.Lock()
+		delete(this.server.OnlineMap, this.Name)
+		this.server.OnlineMap[newName] = this
+		this.server.mapLock.Unlock()
+
+		this.Name = newName
+		this.C <- "您已更新用户名为：" + this.Name
+		return
+	}
+	
+	// 单纯的发消息
 	this.server.BroadCast(this, msg)
 }
 

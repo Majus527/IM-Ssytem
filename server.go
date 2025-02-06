@@ -64,7 +64,7 @@ func (this *Server) Handler(conn net.Conn) {
 		for {
 			n, err := conn.Read(buf)
 			if n == 0 {
-				this.BroadCast(user, "get out")
+				user.Offline()
 				return
 			}
 			if err != nil && err != io.EOF {
@@ -75,7 +75,7 @@ func (this *Server) Handler(conn net.Conn) {
 			// 提取用户的消息(去除\n)
 			msg := string(buf[:n-1])
 
-			// 将提取的消息进行广播
+			// 处理消息
 			user.DoMessage(msg)
 		}
 	}()
