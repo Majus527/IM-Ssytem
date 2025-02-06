@@ -1,6 +1,7 @@
 package main
 
 import "net"
+import "strings"
 
 type User struct {
 	Name string
@@ -59,7 +60,6 @@ func (this *User) DoMessage(msg string) {
 			this.C <- onlineMsg
 		}
 		this.server.mapLock.Unlock()
-
 		return
 	}
 
@@ -68,7 +68,7 @@ func (this *User) DoMessage(msg string) {
 		newName := strings.Split(msg, "|")[1]
 		_, ok := this.server.OnlineMap[newName]
 		if ok {
-			this.C <- "该用户名已被占用"
+			this.C <- "this name has been used"
 			return
 		}
 
@@ -78,7 +78,35 @@ func (this *User) DoMessage(msg string) {
 		this.server.mapLock.Unlock()
 
 		this.Name = newName
-		this.C <- "您已更新用户名为：" + this.Name
+		this.C <- "change success:" + this.Name
+		return
+	}
+
+	// 私聊
+	if len(msg) > 4 && msg[:4] == ":to|" {
+		// 获取对方用户名
+		remoteName := strings.Split(msg, "|")[1]
+		if remoteName == "" {
+			this.C <- "please input remote name"
+			return
+		}
+
+		// 获取消息内容
+		content := strings.Split(msg, "|")[2]
+		if content == "" {
+			this.C <- "please input content"
+			return
+		}
+
+		// 查找对方用户
+		remoteUser, ok := this.server.OnlineMap[remoteName]
+		if !ok {
+			this.C <- "remote user is not online"
+			return
+		}
+
+		// 将消息发送给对方用户
+		remoteUser.C <- "[" + this.Name + "]" + ":" + content
 		return
 	}
 	
@@ -92,4 +120,11 @@ func (this *User) ListenMessage() {
 		msg := <-this.C
 		this.conn.Write([]byte(msg + "\n"))
 	}
+}
+
+// 实时处理消息
+func (this *User) SendMsg(msg string) (err error) {
+	// 将消息发送给客户端
+	this.conn.Write([]byte(msg + "\n"))
+	return
 }

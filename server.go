@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sync"
 	"io"
+	"time"
 )
 
 type Server struct {
@@ -57,6 +58,7 @@ func (this *Server) Handler(conn net.Conn) {
 
 	// 用户上线
 	user.Online()
+	isLive := make(chan bool)
 
 	// 接收客户端发送的消息
 	go func() {
@@ -75,13 +77,25 @@ func (this *Server) Handler(conn net.Conn) {
 			// 提取用户的消息(去除\n)
 			msg := string(buf[:n-1])
 
+			isLive <- true
+
 			// 处理消息
 			user.DoMessage(msg)
 		}
 	}()
 
 	// 当前handler阻塞
-	select {}
+	for {
+		select {
+			case <- isLive:
+			case <- time.After(300 * time.Second):
+				// 超时，强制关闭当前链接
+				user.SendMsg("you are time out")
+				close(user.C)
+				conn.Close()
+				return
+		}
+	}
 
 }
 
